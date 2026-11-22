@@ -29,6 +29,61 @@ dependencies = [
 fxcast = "fxcast.cli:app"
 
 [dependency-groups]
-# Dev-only tools; NOT shipped with the package. Filled in step 0.4.
+# Dev-only tools; NOT shipped with the package (PEP 735).
 # `uv sync` installs the `dev` group by default.
-dev = []
+dev = [
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.6",
+]
+
+# =============================================================================
+# Tooling configuration (single file, no .flake8 / mypy.ini / pytest.ini)
+# =============================================================================
+
+[tool.ruff]
+# Match requires-python floor: ruff won't suggest syntax 3.11 can't run.
+target-version = "py311"
+# 88 (black) forces too many wraps in pandas/numpy chains; 100 is common in data.
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E", "W", # pycodestyle errors / warnings
+    "F",      # pyflakes: real bugs (unused imports, undefined names)
+    "I",      # isort: import ordering
+    "B",      # flake8-bugbear: subtle bugs (mutable defaults, bare except...)
+    "UP",     # pyupgrade: modern syntax for target-version
+    "SIM",    # flake8-simplify
+    "N",      # pep8-naming
+    "RUF",    # ruff-specific rules
+    "PT",     # flake8-pytest-style
+    "NPY",    # numpy rules, e.g. legacy np.random.seed (matters for fixed seeds)
+]
+# Deliberately not selected yet: D (docstrings, noisy early), ANN (mypy covers
+# it), PD (pandas-vet, many false positives).
+
+[tool.mypy]
+python_version = "3.11"
+# strict = every check on (no untyped defs, no implicit Any, ...).
+# Easier to start strict than to tighten later.
+strict = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+# Tests don't need full annotations on every fixture; src/ does.
+module = "tests.*"
+disallow_untyped_defs = false
+# Third-party libs without type stubs go here later, one module at a time
+# (never a global ignore_missing_imports: it silently disables checking).
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# -ra: summary of skipped/failed tests at the end.
+# --strict-markers / --strict-config: typos in markers or config FAIL
+#   instead of being silently ignored.
+# --import-mode=importlib: recommended for src layout (no sys.path hacks).
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
+markers = [
+    "integration: hits the real BCRP API (deselected in CI: -m 'not integration')",
+]
