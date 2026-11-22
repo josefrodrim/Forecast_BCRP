@@ -78,7 +78,7 @@ python_version = "3.11"
 # strict = every check on (no untyped defs, no implicit Any, ...).
 # Easier to start strict than to tighten later.
 strict = true
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
 
 [[tool.mypy.overrides]]
 # Tests don't need full annotations on every fixture; src/ does.

@@ -1,0 +1,15 @@
+{
+"config":
+{
+"title":"Tipo de cambio",
+"series":
+[
+{
+"name":"Tipo de cambio - TC Interbancario (S/ por US$) - Venta",
+"dec":"3"
+}]
+},
+"periods":
+[
+]
+}

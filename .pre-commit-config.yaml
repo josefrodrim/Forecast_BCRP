@@ -10,8 +10,12 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0 # bumped with `pre-commit autoupdate`; pinned by SHA in Phase 6
     hooks:
+      # Recorded API fixtures are raw bytes and must stay byte-identical to
+      # what the API sent (e.g. no final newline), so the fixers skip them.
       - id: trailing-whitespace
+        exclude: ^pipeline/tests/fixtures/
       - id: end-of-file-fixer
+        exclude: ^pipeline/tests/fixtures/
       - id: check-yaml
       - id: check-toml
       - id: check-merge-conflict

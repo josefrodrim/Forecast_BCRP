@@ -1,0 +1,50 @@
+{
+  "two_series_september": {
+    "file": "two_series_september.json",
+    "url": "https://estadisticas.bcrp.gob.pe/estadisticas/series/api/PD04637PD-PD04638PD/json/2026-09-01/2026-09-04/ing",
+    "why": "Two series (positional values) and the 'Set' month token",
+    "status": 200,
+    "content_type": "text/html; charset=UTF-8",
+    "recorded_at": "2026-11-22T07:14:42+00:00"
+  },
+  "fiestas_patrias": {
+    "file": "fiestas_patrias.json",
+    "url": "https://estadisticas.bcrp.gob.pe/estadisticas/series/api/PD04638PD/json/2026-07-24/2026-07-31/ing",
+    "why": "Interior n.d. on national holidays (27-29 Jul) that must be kept as NaN",
+    "status": 200,
+    "content_type": "text/html; charset=UTF-8",
+    "recorded_at": "2026-11-22T07:14:45+00:00"
+  },
+  "trailing_unpublished": {
+    "file": "trailing_unpublished.json",
+    "url": "https://estadisticas.bcrp.gob.pe/estadisticas/series/api/PD04638PD/json/2026-11-16/2026-11-27/ing",
+    "why": "Trailing n.d. for dates not yet published (recorded on 2026-11-22)",
+    "status": 200,
+    "content_type": "text/html; charset=UTF-8",
+    "recorded_at": "2026-11-22T07:14:49+00:00"
+  },
+  "series_start": {
+    "file": "series_start.json",
+    "url": "https://estadisticas.bcrp.gob.pe/estadisticas/series/api/PD04638PD/json/1996-12-25/1997-01-10/ing",
+    "why": "Leading n.d. before the series starts (first value 02.Jan.97)",
+    "status": 200,
+    "content_type": "text/html; charset=UTF-8",
+    "recorded_at": "2026-11-22T07:14:52+00:00"
+  },
+  "weekend_empty": {
+    "file": "weekend_empty.json",
+    "url": "https://estadisticas.bcrp.gob.pe/estadisticas/series/api/PD04638PD/json/2026-11-21/2026-11-22/ing",
+    "why": "Weekend-only range: valid JSON with an empty periods list",
+    "status": 200,
+    "content_type": "text/html; charset=UTF-8",
+    "recorded_at": "2026-11-22T07:14:55+00:00"
+  },
+  "invalid_code": {
+    "file": "invalid_code.html",
+    "url": "https://estadisticas.bcrp.gob.pe/estadisticas/series/api/PD99999PD/json/2026-11-02/2026-11-06/ing",
+    "why": "Invalid code: HTTP 200 with an HTML page instead of JSON",
+    "status": 200,
+    "content_type": "text/html; charset=UTF-8",
+    "recorded_at": "2026-11-22T07:14:58+00:00"
+  }
+}
