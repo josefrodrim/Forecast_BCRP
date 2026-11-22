@@ -19,3 +19,13 @@ def bcrp_payload() -> Callable[[str], object]:
         return decoded
 
     return _load
+
+
+@pytest.fixture
+def bcrp_raw() -> Callable[[str], bytes]:
+    """Factory: raw bytes of a recorded response, e.g. ``bcrp_raw("invalid_code.html")``."""
+
+    def _load(filename: str) -> bytes:
+        return (BCRP_FIXTURES / filename).read_bytes()
+
+    return _load
