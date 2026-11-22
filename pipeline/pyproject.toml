@@ -22,6 +22,7 @@ requires-python = ">=3.11"
 dependencies = [
     "httpx>=0.28.1",
     "pandas>=3.1.1",
+    "pyarrow>=26.0.1",
     "typer>=0.29.2",
 ]
 
@@ -84,8 +85,12 @@ files = ["src", "tests", "scripts"]
 # Tests don't need full annotations on every fixture; src/ does.
 module = "tests.*"
 disallow_untyped_defs = false
-# Third-party libs without type stubs go here later, one module at a time
+
+# Third-party libs without type information, one module at a time
 # (never a global ignore_missing_imports: it silently disables checking).
+[[tool.mypy.overrides]]
+module = ["pyarrow", "pyarrow.*"]  # ships no py.typed / stubs as of 26.0
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
