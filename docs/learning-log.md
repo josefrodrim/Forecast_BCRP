@@ -155,3 +155,81 @@ curl -s https://api.github.com/repos/{owner}/{repo}/license               # lice
   - pathspec: PyPI dice MPL-2.0, GitHub detecta MIT; el repo está en relicenciamiento a
     `MIT OR MPL-2.0`. MPL-2.0 es OSI → aceptable (dev-only, no lo modificamos).
 - typer 0.29 ya **no** depende de click (trae pydantic). No asumir árboles de memoria.
+
+---
+
+## Fase 1 — Ingesta
+
+### 1.1 Grupo `notebooks` y nbstripout — 2026-11-22
+
+**Qué hicimos:** `httpx` y `pandas` como dependencias runtime; grupo `notebooks` (jupyterlab);
+`nbstripout --keep-output` como hook de pre-commit; `notebooks/01_api.ipynb` inicial.
+
+**Comandos:**
+```bash
+uv add --project pipeline pandas httpx
+uv add --project pipeline --group notebooks jupyterlab
+uv run --project pipeline --group notebooks jupyter lab notebooks/01_api.ipynb
+```
+
+**Conceptos:**
+- El kernel corre en el mismo `.venv` del pipeline → el notebook importa exactamente lo que usa el paquete.
+- Grupos opt-in: `notebooks` no se instala por defecto (CI y Docker más livianos).
+- `--keep-output`: se ven tablas/gráficos en GitHub; se limpia `execution_count` y metadata.
+- pandas 3.x: Copy-on-Write siempre activo; dtype `str` por defecto; *chained assignment* ya no modifica.
+
+**Errores / observaciones:**
+- nbstripout normalizó el notebook escrito a mano (renumeró ids de celda) → `Failed` + re-`git add`.
+- `[WARNING] Unstaged files detected`: Jupyter guardó el notebook después del `git add`. pre-commit
+  guarda esos cambios en un stash, corre los hooks solo sobre lo que está en staging y los restaura.
+- Warnings de Jupyter: `not trusted` (no ejecuta JS de outputs ajenos), `TCP without encryption`
+  (solo escucha en localhost).
+
+### 1.2 Primera petición y anatomía del JSON — 2026-11-22
+
+**Conceptos:**
+- Respuesta HTTP = status + headers + body. `200` ≠ "datos correctos".
+- Timeout explícito siempre (httpx usa 5 s por defecto).
+- Rango de fechas fijo en el notebook → outputs reproducibles.
+
+**Hallazgos:**
+- `Content-Type: text/html` aunque el body es JSON. httpx `.json()` ignora el header.
+- `x-cdn: Imperva` (WAF anti-bots): sus páginas de bloqueo también llegan como `200 text/html`
+  → ni status ni header distinguen datos de bloqueo. Riesgo con IPs de datacenter (GitHub Actions).
+- Valores como strings; 15 periodos hábiles entre 2 y 20 nov 2026.
+
+### 1.3 Parseo de fechas y valores — 2026-11-22
+
+**Conceptos:**
+- `%y` sigue la regla POSIX: `68 → 2068`, `69 → 1969` (99 años de distancia por un día).
+  El pipeline se rompería el 1-ene-2069 sin error visible.
+- `%b` depende del locale (`LC_TIME`).
+- Fallar fuerte vs en silencio: `pd.to_numeric(errors="coerce")` convierte `"3,41"` en NaN
+  sin avisar; el parser explícito lanza `ValueError`.
+- Guardar precisión completa (~14 decimales). `"dec": "3"` es solo para mostrar; redondear
+  sesga retornos y volatilidad.
+
+### 1.4 Casos borde de la API — 2026-11-22
+
+**Concepto:** explorar una API por experimentación, con `sleep` entre llamadas (cortesía + WAF).
+
+**Hallazgos:**
+- Código inválido → `200` + HTML de 155 B (challenge de Imperva). Una llamada válida justo
+  después devolvió la misma página → el mismo HTML puede ser permanente o transitorio.
+- La API devuelve la grilla L–V del rango pedido: feriados **y fechas futuras/no publicadas** como `n.d.`.
+  Último dato real: jueves 19 nov; viernes 20 = `n.d.` el domingo 22 → rezago > 1 día hábil.
+- Septiembre llega como `"Set"` aunque la URL pide `/ing` → `%b` falla.
+- Sin rango máximo: 1997–2026, 2 series, 7798 periodos en una llamada de ~0.5 s.
+- `values` es posicional respecto a `config.series`.
+- Compra y venta son `n.d.` los mismos 355 días (≈ 12 feriados/año × 30 años).
+- Primer dato real: `02.Jan.97`; antes, grilla `n.d.`.
+
+### 1.5 Key takeaways del notebook 01 — 2026-11-22
+
+**Reglas de diseño para `src/`:**
+- `parse_date`: mapeo propio de meses `{Jan..Dec, Set, Sep}`; siglo resuelto dentro de `[start, end]`.
+- `parse_value`: `"n.d." → NaN`; `float()`; cualquier otra cosa → error.
+- Respuesta no-JSON → error transitorio (reintentar); JSON con forma inesperada → permanente (fallar).
+- Recortar los `n.d.` iniciales y finales; conservar como NaN los interiores (feriados).
+- Ingesta incremental: volver a pedir los últimos 10 días hábiles + upsert por fecha (idempotente).
+- Backfill en un solo request.
