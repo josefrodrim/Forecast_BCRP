@@ -233,3 +233,112 @@ uv run --project pipeline --group notebooks jupyter lab notebooks/01_api.ipynb
 - Recortar los `n.d.` iniciales y finales; conservar como NaN los interiores (feriados).
 - Ingesta incremental: volver a pedir los últimos 10 días hábiles + upsert por fecha (idempotente).
 - Backfill en un solo request.
+
+### 1.6 Parser puro `ingest/parse.py` — 2026-11-22
+
+**Qué hicimos:** `parse_date`, `parse_value`, `parse_response` y `BCRPParseError`; `pandas-stubs`.
+
+**Conceptos:**
+- *Functional core, imperative shell*: la lógica sin I/O se testea con fixtures, sin red.
+- `payload: object` en vez de `dict[str, Any]`: mypy strict obliga a validar con `isinstance`.
+- `float("nan")` y `float("inf")` son válidos en Python → rechazarlos explícitamente.
+- `raise ... from exc` encadena excepciones y conserva la causa raíz.
+
+**Errores:**
+- `cd: no such file or directory: pipeline`: la shell ya estaba dentro de `pipeline/`
+  (un `cd` previo cambió el directorio de trabajo de la sesión). Tip: `pwd` antes de usar rutas relativas.
+
+### 1.7 Tests con fixtures grabadas — 2026-11-22
+
+**Qué hicimos:** `scripts/record_fixtures.py` (6 casos reales + `manifest.json`), fixture
+factory en `conftest.py`, 37 tests parametrizados.
+
+**Conceptos:**
+- Fixtures **grabadas** > inventadas: capturan rarezas reales (`Set`, `text/html`, `n.d.`).
+- `pytest.mark.parametrize`: un test, muchos casos, cada uno con su id.
+- Los casos de "contrato roto" mutan una copia (`deepcopy`) de una fixture real.
+
+**Hallazgos / errores:**
+- La página del código inválido es un challenge de Imperva Incapsula (`/_Incapsula_Resource`)
+  y su tamaño varía (155 B → 287 B) → no detectar bloqueos por tamaño.
+- `end-of-file-fixer` habría agregado `\n` a las fixtures → `exclude: ^pipeline/tests/fixtures/`
+  solo en los dos fixers.
+- Ejercicio: comentar `"Set": 9` → 2 tests fallan, uno con la fixture real (el bug de cada septiembre).
+
+### 1.8 Cliente HTTP con reintentos — 2026-11-22
+
+**Qué hicimos:** `BCRPClient`, `RetryPolicy`, `backoff_delay` (full jitter), taxonomía de
+errores; 17 tests con `httpx.MockTransport`.
+
+**Conceptos:**
+- GET es idempotente → seguro de reintentar.
+- Backoff exponencial + *full jitter* evita el *thundering herd*.
+- Inyección de dependencias (`http`, `sleep`, `rng`) → tests sin red y sin esperas.
+- `httpx.TimeoutException` es subclase de `TransportError` → capturarla primero.
+- El parseo va fuera del loop de reintentos: un error permanente no se reintenta.
+
+**Errores:**
+- Jupyter abierto con una versión vieja en memoria sobrescribió `01_api.ipynb` (perdió la celda
+  de Key takeaways). Solución: cerrar Jupyter y `git checkout -- notebooks/01_api.ipynb`.
+  Lección: no editar el mismo notebook desde dos lugares → en `02_eda` el usuario pega las celdas.
+
+### 1.9 Storage Parquet con upsert idempotente — 2026-11-22
+
+**Qué hicimos:** `ingest/series.py` (`buy`/`sell`), `storage/` con `Storage` (Protocol),
+`UpsertResult`, `ParquetStorage`; 16 tests.
+
+**Conceptos:**
+- `Protocol` = tipado estructural (no hace falta herencia).
+- Idempotencia: el segundo upsert no cambia nada y **no reescribe el archivo** → sin diff en git.
+- Escritura atómica: archivo temporal en el mismo directorio + `os.replace`.
+- "Gana el dato entrante" (revisiones del BCRP); `NaN == NaN` cuenta como sin cambio.
+- `date` como Arrow `date32`.
+
+**Errores:**
+- mypy: `"Index[Any]" has no attribute "as_unit"` → los stubs pierden `DatetimeIndex` tras
+  `astype` / `sort_index`; se envuelve con `pd.DatetimeIndex(...)`.
+- Commit con el mensaje del paso anterior (flecha ↑ del historial) →
+  `git commit --amend -m "..."` **antes** del push. Nunca hacer amend de commits ya subidos.
+  En un amend que solo cambia el mensaje los hooks salen `Skipped` (no hay nada en staging).
+
+### 1.10 CLI `fxcast ingest` y backfill — 2026-11-22
+
+**Qué hicimos:** `ingest/service.py` (`resolve_window`, `run_ingest`, `today_lima`), comando
+`ingest` (`--backfill`, `--start`, `--end`, `--data-dir` / `FXCAST_DATA_DIR`), `tzdata`.
+Backfill real: 7796 filas 1997-01-02 → 2026-11-19 en `data/rates.parquet` (~107 KB).
+
+**Comandos:**
+```bash
+uv run --project pipeline fxcast ingest --backfill   # updated: inserted=7796 ...
+uv run --project pipeline fxcast ingest              # no-op: ... unchanged=11
+uv run --project pipeline fxcast ingest --data-dir /tmp/empty; echo "exit=$?"   # exit=1
+```
+
+**Conceptos:**
+- Contrato del CLI: stdout = resultado; stderr = logs/errores; exit 0 (también el no-op),
+  1 (error del pipeline), 2 (uso incorrecto).
+- El reloj es una dependencia: "hoy" en hora de Lima, inyectado en los tests.
+- Solo los errores conocidos se resumen en una línea; los inesperados conservan su traceback.
+- Commits separados para código y datos (`feat(cli)` / `chore(data)`).
+- pre-commit trata el Parquet como binario (solo corre `check-added-large-files`); git muestra
+  `0 insertions` porque no hay líneas.
+
+### 1.11 Cierre de la Fase 1 — 2026-11-22
+
+**Qué hicimos:** 4 tests `integration` contra la API real (opt-in con `-m integration`),
+ADR-0002 (ingesta) y ADR-0003 (storage), `licenses.md` actualizado.
+
+**Comandos:**
+```bash
+uv run --project pipeline pytest -q                  # 84 passed, 4 deselected
+uv run --project pipeline pytest -q -m integration   # 4 passed (red real)
+```
+
+**Conceptos:**
+- Pirámide de tests: muchos unitarios rápidos y deterministas; pocos de integración que
+  verifican que los supuestos siguen vigentes.
+- `addopts` con `-m 'not integration'`: un `-m` posterior en la línea de comandos lo reemplaza.
+- Licencias: runtime y dev verificadas en el repo oficial; las 71 transitivas del grupo
+  `notebooks` por metadata (límite de la API de GitHub: 60 peticiones por hora sin autenticar).
+- Hallazgos: python-dateutil es Apache-2.0 + BSD-3 (PyPI solo dice BSD); certifi es MPL-2.0;
+  numpy incluye componentes CC0-1.0.
