@@ -33,6 +33,7 @@ fxcast = "fxcast.cli:app"
 # `uv sync` installs the `dev` group by default.
 dev = [
     "mypy>=2.4.1",
+    "pre-commit>=4.7.0",
     "pytest>=9.2.0",
     "ruff>=0.17.6",
 ]

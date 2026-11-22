@@ -1,0 +1,65 @@
+# =============================================================================
+# pre-commit hooks: fast checks that run before every `git commit`.
+# Install once per clone:   uv run --project pipeline pre-commit install
+# Run on everything:        uv run --project pipeline pre-commit run --all-files
+# Rule: keep this under a few seconds. Slow checks (pytest) belong in CI.
+# =============================================================================
+
+repos:
+  # --- Generic, repo-wide hygiene -------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0 # bumped with `pre-commit autoupdate`; pinned by SHA in Phase 6
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-added-large-files
+        # /data is versioned: block accidental big Parquet/CSV dumps.
+        # Removing a large file from git history is very expensive.
+        args: ["--maxkb=1000"]
+
+  # --- Python (pipeline/) ---------------------------------------------------
+  # `repo: local` + `language: system` = run the tools installed by uv.
+  # Single source of truth: tool versions come from pipeline/uv.lock, so the
+  # hook, your terminal and CI always run the exact same ruff/mypy.
+  - repo: local
+    hooks:
+      - id: uv-lock
+        name: uv lock (keep uv.lock in sync with pyproject.toml)
+        entry: uv lock --project pipeline
+        language: system
+        files: ^pipeline/(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+
+      - id: ruff-format
+        name: ruff format
+        # --project picks pipeline's venv but keeps cwd at repo root, so the
+        # root-relative filenames pre-commit passes still resolve.
+        entry: uv run --project pipeline ruff format
+        language: system
+        types_or: [python, pyi]
+        files: ^pipeline/
+
+      - id: ruff-check
+        name: ruff check
+        # Format first, then lint: --fix may rewrite code (e.g. import order).
+        entry: uv run --project pipeline ruff check --fix
+        language: system
+        types_or: [python, pyi]
+        files: ^pipeline/
+
+      - id: mypy
+        name: mypy (strict)
+        # --directory changes cwd to pipeline/ so mypy finds [tool.mypy] in
+        # pipeline/pyproject.toml (mypy reads config from cwd, not per file).
+        entry: uv run --directory pipeline mypy
+        language: system
+        types_or: [python, pyi]
+        files: ^pipeline/
+        # mypy must see the whole project (cross-module types), not only the
+        # changed files; it uses `files = [...]` from its own config.
+        pass_filenames: false
+        require_serial: true
