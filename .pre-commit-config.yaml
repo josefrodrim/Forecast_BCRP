@@ -63,3 +63,13 @@ repos:
         # changed files; it uses `files = [...]` from its own config.
         pass_filenames: false
         require_serial: true
+
+      # --- Notebooks (notebooks/) -------------------------------------------
+      - id: nbstripout
+        name: nbstripout (keep outputs, strip noise)
+        # --keep-output: tables/plots stay visible on GitHub (portfolio value).
+        # Still strips execution_count and kernel/run metadata, which change on
+        # every run and would make diffs unreadable.
+        entry: uv run --project pipeline nbstripout --keep-output
+        language: system
+        files: ^notebooks/.*\.ipynb$
