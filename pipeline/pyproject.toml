@@ -1,0 +1,34 @@
+# =============================================================================
+# fxcast - PEN/USD exchange rate forecasting pipeline
+# Standard: PEP 621 (project metadata) + PEP 735 (dependency groups).
+# =============================================================================
+
+[build-system]
+# Backend that turns src/ into an installable wheel. uv_build is uv's own
+# backend: fast, src-layout by default. Upper bound avoids surprise breaking
+# changes from a future major/minor of the backend.
+requires = ["uv_build>=0.13.6,<0.14"]
+build-backend = "uv_build"
+
+[project]
+name = "fxcast"
+version = "0.1.0"
+description = "PEN/USD exchange rate forecasting with BCRP data: baselines to CNN-LSTM."
+readme = "README.md"
+license = "MIT"
+# Floor at 3.11 (CI matrix 3.11-3.13); local dev pinned to 3.12 via .python-version.
+requires-python = ">=3.11"
+# Runtime deps only. Add each one when a step needs it, never "just in case".
+dependencies = [
+    "typer>=0.29.2",
+]
+
+[project.scripts]
+# Entry point: installing the package creates the `fxcast` command in the venv.
+# Format "module.path:object" -> runs fxcast/cli.py's `app`.
+fxcast = "fxcast.cli:app"
+
+[dependency-groups]
+# Dev-only tools; NOT shipped with the package. Filled in step 0.4.
+# `uv sync` installs the `dev` group by default.
+dev = []
