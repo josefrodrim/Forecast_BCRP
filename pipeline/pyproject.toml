@@ -99,7 +99,9 @@ testpaths = ["tests"]
 # --strict-markers / --strict-config: typos in markers or config FAIL
 #   instead of being silently ignored.
 # --import-mode=importlib: recommended for src layout (no sys.path hacks).
-addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
+# -m "not integration": live API tests are opt-in. A later -m on the command
+#   line wins, so `pytest -m integration` runs only them.
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib -m 'not integration'"
 markers = [
-    "integration: hits the real BCRP API (deselected in CI: -m 'not integration')",
+    "integration: hits the real BCRP API (opt-in: uv run pytest -m integration)",
 ]
