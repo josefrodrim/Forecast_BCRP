@@ -635,6 +635,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "typer" },
+    { name = "tzdata" },
 ]
 
 [package.dev-dependencies]
@@ -656,6 +657,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=3.1.1" },
     { name = "pyarrow", specifier = ">=26.0.1" },
     { name = "typer", specifier = ">=0.29.2" },
+    { name = "tzdata", specifier = ">=2026.6" },
 ]
 
 [package.metadata.requires-dev]
