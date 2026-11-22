@@ -1,0 +1,61 @@
+# =============================================================================
+# PEN/USD Forecast Arena - .gitignore
+# Rule of thumb: commit source + small curated artifacts; never commit
+# environments, caches, secrets, or large/raw intermediate data.
+# =============================================================================
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+# uv creates the virtualenv here; it is reproducible from uv.lock, so never commit it.
+.venv/
+
+# --- Tooling caches (regenerated on every run) -------------------------------
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# --- Jupyter -----------------------------------------------------------------
+.ipynb_checkpoints/
+
+# --- ML experiment tracking --------------------------------------------------
+# MLflow local file store: experiments are reproducible from code + seeds.
+mlruns/
+mlartifacts/
+# Model weights/checkpoints can be large; publish only via releases if needed.
+*.pt
+*.ckpt
+# Leading "/" anchors to repo root. A bare "models/" would also ignore the
+# source package pipeline/src/fxcast/models/ - a classic silent bug.
+/models/
+
+# --- Data --------------------------------------------------------------------
+# /data IS versioned (the web reads it), but scratch/raw dumps are not.
+data/raw/
+data/tmp/
+
+# --- Secrets & local config --------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- Node / Next.js (web/) ---------------------------------------------------
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# --- OS / editors ------------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
